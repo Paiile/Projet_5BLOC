@@ -27,6 +27,7 @@ contract TCGGame is Ownable {
     mapping(address => uint256[]) public userCards;
     
     uint256 public constant MAX_CARDS_PER_USER = 15;
+    uint16 public constant CARDS_PER_BOOSTER = 3;
     uint256 public constant TRANSFER_COOLDOWN = 5 minutes;
     uint256 public constant CRITICAL_ACTION_LOCK = 10 minutes;
     
@@ -49,13 +50,13 @@ contract TCGGame is Ownable {
     
     // Ouverture d'un booster
     function openBooster() external {
-        require(userCards[msg.sender].length + 3 <= MAX_CARDS_PER_USER, "Would exceed max cards limit");
+        require(userCards[msg.sender].length + CARDS_PER_BOOSTER <= MAX_CARDS_PER_USER, "Would exceed max cards limit");
         require(block.timestamp >= lastTransferTime[msg.sender] + TRANSFER_COOLDOWN, "Transfer cooldown active");
         require(gameToken.transferFrom(msg.sender, address(this), BOOSTER_PRICE), "Token transfer failed");
         
-        uint256[] memory newCardIds = new uint256[](3);
+        uint256[] memory newCardIds = new uint256[](CARDS_PER_BOOSTER);
         
-        for(uint256 i = 0; i < 3; i++) {
+        for(uint256 i = 0; i < CARDS_PER_BOOSTER; i++) {
             _currentCardId++;
             uint256 newCardId = _currentCardId;
             
@@ -84,6 +85,7 @@ contract TCGGame is Ownable {
     }
     
     // Fonction pour transférer une carte
+    //TODO: add money transfert ?
     function transferCard(address to, uint256 cardId) external {
         require(cards[cardId].exists, "Card does not exist");
         require(cards[cardId].currentOwner == msg.sender, "Not card owner");
@@ -109,11 +111,10 @@ contract TCGGame is Ownable {
         
         uint256 tokenReward = calculateBurnReward(cards[cardId].rarity);
         
-        // Brûler la carte
+        // Brûler la carte si le transfert fonctionne
+        require(gameToken.transfer(msg.sender, tokenReward), "Reward transfer failed");
         removeCardFromUser(msg.sender, cardId);
         cards[cardId].exists = false;
-        
-        require(gameToken.transfer(msg.sender, tokenReward), "Reward transfer failed");
         
         lastCriticalActionTime[msg.sender] = block.timestamp;
         emit CardBurned(msg.sender, cardId, tokenReward);
