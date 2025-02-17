@@ -25,6 +25,11 @@ describe("TCGGame", function () {
         game = await TCGGame.deploy(tokenAddress);
         await game.waitForDeployment();
 
+        // Deploy CardsManager
+        const CardsManager = await ethers.getContractFactory("CardsManager");
+        cardsManager = await CardsManager.deploy();
+        await cardsManager.waitForDeployment();
+
         // Initial token distribution
         const amount = ethers.parseEther("1000");
         await gameToken.transfer(addr1.address, amount);

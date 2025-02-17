@@ -3,11 +3,13 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./CardsManager.sol";
 
 contract TCGGame is Ownable {
     uint256 private _currentCardId;
     
     ERC20 public gameToken;
+    CardsManager public cardsManager;
     
     struct Card {
         string name;
@@ -17,11 +19,11 @@ contract TCGGame is Ownable {
         address[] previousOwners;
         uint256 createdAt;
         uint256 lastTransferAt;
-        uint256 rarity;
+        string rarity;
         address currentOwner;
         bool exists;
     }
-    
+
     mapping(uint256 => Card) public cards;
     
     mapping(address => uint256[]) public userCards;
@@ -40,8 +42,9 @@ contract TCGGame is Ownable {
     event CardBurned(address indexed player, uint256 cardId, uint256 tokenAmount);
     event CardTransferred(address indexed from, address indexed to, uint256 cardId);
     
-    constructor(address _gameTokenAddress)  Ownable(msg.sender) {
+    constructor(address _gameTokenAddress) Ownable(msg.sender) {
         gameToken = ERC20(_gameTokenAddress);
+        cardsManager = new CardsManager();
     }
     
     function getUserCards(address user) external view returns (uint256[] memory) {
@@ -66,7 +69,7 @@ contract TCGGame is Ownable {
             cards[newCardId] = Card({
                 name: generateCardName(newCardId),
                 cardType: generateCardType(newCardId),
-                value: generateCardValue(newCardId),
+                value: 0,
                 ipfsHash: generateIPFSHash(newCardId),
                 previousOwners: previousOwners,
                 createdAt: block.timestamp,
@@ -75,6 +78,8 @@ contract TCGGame is Ownable {
                 currentOwner: msg.sender,
                 exists: true
             });
+
+            setCardValue(cards[newCardId]);
             
             userCards[msg.sender].push(newCardId);
             newCardIds[i] = newCardId;
@@ -132,35 +137,89 @@ contract TCGGame is Ownable {
         }
     }
     
-    function generateCardName(uint256 seed) internal pure returns (string memory) {
-        return string(abi.encodePacked("Card #", toString(seed)));
+    function generateCardName(uint256 seed) internal view returns (string memory) {
+        string[] memory cardNames = cardsManager.getCardNames();
+        uint256 index = uint256(keccak256(abi.encode(seed))) % cardNames.length;
+        return cardNames[index];
     }
     
-    function generateCardType(uint256 seed) internal pure returns (string memory) {
-        return "Standard";
+    function generateCardType(uint256 seed) internal view returns (string memory) {
+        string[] memory cardTypes = cardsManager.getCardTypes();
+        uint256 index = uint256(keccak256(abi.encode(seed))) % cardTypes.length;
+        return cardTypes[index];
+    }
+
+    function setCardValue(Card memory card) internal view {
+        card.value = generateCardValue(card.name, card.rarity, card.cardType);
     }
     
-    function generateCardValue(uint256 seed) internal pure returns (uint256) {
-        return seed * 10;
+    function generateCardValue(string memory cardName, string memory cardRarity, string memory cardType) internal view returns (uint256) {
+        string[] memory cardNames = cardsManager.getCardNames();
+        string[] memory cardRarities = cardsManager.getCardRarities();
+        string[] memory cardTypes = cardsManager.getCardTypes();
+        uint256 cardNameIndex;
+        uint256 cardRarityIndex;
+        uint256 cardTypeIndex;
+        
+        for (uint256 i = 0; i < cardNames.length; i++) {
+            if (keccak256(abi.encodePacked(cardNames[i])) == keccak256(abi.encodePacked(cardName))) {
+                cardNameIndex = i;
+                break;
+            }
+        }
+
+        for (uint256 i = 0; i < cardRarities.length; i++) {
+            if (keccak256(abi.encodePacked(cardRarities[i])) == keccak256(abi.encodePacked(cardRarity))) {
+                cardRarityIndex = i;
+                break;
+            }
+        }
+
+        for (uint256 i = 0; i < cardTypes.length; i++) {
+            if (keccak256(abi.encodePacked(cardTypes[i])) == keccak256(abi.encodePacked(cardType))) {
+                cardTypeIndex = i;
+                break;
+            }
+        }
+
+        return (cardNameIndex + 1) * (cardRarityIndex + 1) * (cardTypeIndex + 1) * 10**18;
     }
     
     function generateIPFSHash(uint256 seed) internal pure returns (string memory) {
-        return "QmHash...";
+        // return "QmHash...";
+        return string(abi.encodePacked("Qm", toString(seed)));
     }
     
     // Rareté aléatoire 
-    function generateRarity() internal view returns (uint256) {
+    function generateRarity() internal view returns (string memory) {
         uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender))) % 100;
-        if (rand < 60) return 1;
-        if (rand < 90) return 2;
-        return 3;
+        string[] memory cardRarities = cardsManager.getCardRarities();
+        
+        if (rand < 50) return cardRarities[0];
+        if (rand < 70) return cardRarities[1];
+        if (rand < 85) return cardRarities[2];
+        if (rand < 95) return cardRarities[3];
+        return cardRarities[4];
     }
     
     // Récompense selon la rareté
-    function calculateBurnReward(uint256 rarity) internal pure returns (uint256) {
-        if (rarity == 1) return 30 * 10**18;
-        if (rarity == 2) return 60 * 10**18;
-        return 100 * 10**18;
+    function calculateBurnReward(string memory rarity) internal view returns (uint256) {
+        string[] memory cardRarities = cardsManager.getCardRarities();
+        bool rarityExists = false;
+        for (uint256 i = 0; i < cardRarities.length; i++) {
+            if (keccak256(abi.encodePacked(cardRarities[i])) == keccak256(abi.encodePacked(rarity))) {
+                rarityExists = true;
+                break;
+            }
+        }
+        require(rarityExists, "Invalid rarity");
+        uint16 raritiesLength = uint16(cardRarities.length);
+        for (uint256 i = 0; i < raritiesLength; i++) {
+            if (keccak256(abi.encodePacked(rarity)) == keccak256(abi.encodePacked(cardRarities[i]))) {
+                return (i + 1) * 10 * 10**18;
+            }
+        }
+        return 0; //Should never pass here
     }
     
     function toString(uint256 value) internal pure returns (string memory) {
