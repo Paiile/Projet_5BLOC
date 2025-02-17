@@ -90,7 +90,6 @@ contract TCGGame is Ownable {
     }
     
     // Fonction pour transférer une carte
-    //TODO: add money transfert ?
     function transferCard(address to, uint256 cardId) external {
         require(cards[cardId].exists, "Card does not exist");
         require(cards[cardId].currentOwner == msg.sender, "Not card owner");
@@ -186,7 +185,6 @@ contract TCGGame is Ownable {
     }
     
     function generateIPFSHash(uint256 seed) internal pure returns (string memory) {
-        // return "QmHash...";
         return string(abi.encodePacked("Qm", toString(seed)));
     }
     
