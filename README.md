@@ -7,7 +7,7 @@ Try running some of the following tasks:
 ```shell
 npx hardhat node
 npx hardhat compile
-npx hardhat ignition deploy ./ignition/modules/Lock.js
+npx hardhat ignition deploy .\ignition\modules\TCGGame.js --network localhost
 npx hardhat test
 
 REPORT_GAS=true npx hardhat test

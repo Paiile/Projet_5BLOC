@@ -7,8 +7,12 @@ module.exports = buildModule("TCGGameModule", (m) => {
     // Déploiement de TCGGame avec le token 
     const game = m.contract("TCGGame", [token]);
 
+    //Déploiement de CardManager
+    const cardsManager = m.contract("CardsManager");
+
     return {
         token,
-        game
+        game,
+        cardsManager
     };
 });
