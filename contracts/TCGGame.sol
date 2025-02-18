@@ -126,7 +126,7 @@ contract TCGGame is Ownable {
         emit CardBurned(msg.sender, cardId, tokenReward);
     }
     
-    // Fonction utilitaire pour retirer une carte d'un utilisateur
+    // Fonction pour retirer une carte d'un utilisateur
     function removeCardFromUser(address user, uint256 cardId) internal {
         uint256[] storage userCardsList = userCards[user];
         for (uint256 i = 0; i < userCardsList.length; i++) {
