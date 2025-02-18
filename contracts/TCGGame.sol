@@ -229,4 +229,14 @@ contract TCGGame is Ownable {
         }
         return string(buffer);
     }
+
+    function withdrawETH() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No ETH to withdraw");
+        
+        (bool success, ) = owner().call{value: balance}("");
+        require(success, "ETH transfer failed");
+    }
+
+    receive() external payable {}
 }

@@ -225,4 +225,48 @@ describe("TCGGame", function () {
         //     ).to.be.revertedWith("Contract does not have enough tokens");
         // });
     });
+
+    describe("Retrait d'ETH", function () {
+        beforeEach(async function () {
+            // Envoi d'ETH au contrat pour les tests
+            await addr1.sendTransaction({
+                to: await game.getAddress(),
+                value: ethers.parseEther("1.0")
+            });
+        });
+
+        it("Devrait permettre à l'owner de retirer les ETH", async function () {
+            const gameAddress = await game.getAddress();
+            const initialBalance = await ethers.provider.getBalance(gameAddress);
+            const initialOwnerBalance = await ethers.provider.getBalance(owner.address);
+            
+            const tx = await game.connect(owner).withdrawETH();
+            await tx.wait();
+            
+            const finalBalance = await ethers.provider.getBalance(gameAddress);
+            const finalOwnerBalance = await ethers.provider.getBalance(owner.address);
+            
+            expect(finalBalance).to.equal(0);
+            expect(finalOwnerBalance).to.be.greaterThan(initialOwnerBalance);
+        });
+        
+        it("Devrait échouer si appelé par un non-owner", async function () {
+            await expect(
+                game.connect(addr1).withdrawETH()
+            ).to.be.revertedWithCustomError(
+                game,
+                "OwnableUnauthorizedAccount"
+            );
+        });
+        
+        it("Devrait échouer s'il n'y a pas d'ETH à retirer", async function () {
+            // D'abord retirer tout l'ETH
+            await game.connect(owner).withdrawETH();
+            
+            // Essayer de retirer à nouveau
+            await expect(
+                game.connect(owner).withdrawETH()
+            ).to.be.revertedWith("No ETH to withdraw");
+        });
+    });
 });
