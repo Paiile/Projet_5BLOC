@@ -113,7 +113,9 @@ contract TCGGame is Ownable {
         require(cards[cardId].currentOwner == msg.sender, "Not card owner");
         require(block.timestamp >= lastCriticalActionTime[msg.sender] + CRITICAL_ACTION_LOCK, "Critical action lock active");
         
-        uint256 tokenReward = calculateBurnReward(cards[cardId].rarity);
+        uint256 tokenReward = getBurnReward(cardId);
+
+        require(gameToken.balanceOf(address(this)) >= tokenReward, "Contract does not have enough tokens");
         
         // Brûler la carte si le transfert fonctionne
         require(gameToken.transfer(msg.sender, tokenReward), "Reward transfer failed");
@@ -183,6 +185,15 @@ contract TCGGame is Ownable {
 
         return (cardNameIndex + 1) * (cardRarityIndex + 1) * (cardTypeIndex + 1) * 10**18;
     }
+
+    function getBurnReward(uint256 cardId) public view returns (uint256) {
+        require(cards[cardId].exists, "Card does not exist");
+        
+        Card memory card = cards[cardId];
+        uint256 cardValue = card.value;
+
+        return cardValue;
+    }
     
     function generateIPFSHash(uint256 seed) internal pure returns (string memory) {
         return string(abi.encodePacked("Qm", toString(seed)));
@@ -199,27 +210,7 @@ contract TCGGame is Ownable {
         if (rand < 95) return cardRarities[3];
         return cardRarities[4];
     }
-    
-    // Récompense selon la rareté
-    function calculateBurnReward(string memory rarity) internal view returns (uint256) {
-        string[] memory cardRarities = cardsManager.getCardRarities();
-        bool rarityExists = false;
-        for (uint256 i = 0; i < cardRarities.length; i++) {
-            if (keccak256(abi.encodePacked(cardRarities[i])) == keccak256(abi.encodePacked(rarity))) {
-                rarityExists = true;
-                break;
-            }
-        }
-        require(rarityExists, "Invalid rarity");
-        uint16 raritiesLength = uint16(cardRarities.length);
-        for (uint256 i = 0; i < raritiesLength; i++) {
-            if (keccak256(abi.encodePacked(rarity)) == keccak256(abi.encodePacked(cardRarities[i]))) {
-                return (i + 1) * 10 * 10**18;
-            }
-        }
-        return 0; //Should never pass here
-    }
-    
+       
     function toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
             return "0";

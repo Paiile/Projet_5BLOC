@@ -205,5 +205,26 @@ describe("TCGGame", function () {
             game.connect(addr1).burnCard(userCards[1])
           ).to.be.revertedWith("Critical action lock active");
         });
+        
+        it("Devrait échouer si le contrat n'a pas assez de tokens", async function () {
+            const userCards = await game.getUserCards(addr1.address);
+            const gameAddress = await game.getAddress();
+            
+            // Get the initial balances
+            const ownerBalance = await gameToken.balanceOf(gameAddress);
+    
+            // Transfer all tokens from the owner to addr1
+            await gameToken.connect(owner).transfer(gameAddress, ownerBalance);
+            const ownerBalance2 = await gameToken.balanceOf(owner.address);
+
+            // Attendre que le CRITICAL_ACTION_LOCK soit passé
+            await ethers.provider.send("evm_increaseTime", [600]); // 10 minutes
+            await ethers.provider.send("evm_mine");
+            console.log("OwnerToken", await gameToken.balanceOf(gameAddress));
+            // Essayer de brûler une carte sans tokens dans le contrat
+            await expect(
+                game.connect(addr1).burnCard(userCards[0])
+            ).to.be.revertedWith("Contract does not have enough tokens");
+        });
     });
 });
