@@ -15,4 +15,9 @@ contract GameToken is ERC20, Ownable {
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
     }
+
+    function burnTokens(uint256 amount) external onlyOwner {
+        require(balanceOf(address(this)) >= amount, "Not enough tokens in contract");
+        _burn(address(this), amount);
+    }
 }

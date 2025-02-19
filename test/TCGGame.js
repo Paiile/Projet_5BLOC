@@ -269,4 +269,41 @@ describe("TCGGame", function () {
             ).to.be.revertedWith("No ETH to withdraw");
         });
     });
+    
+    describe("BrulerTokens", function () {
+        it("Devrait permettre au propriétaire de brûler des tokens du contrat", async function () {
+            await gameToken.transfer(await gameToken.getAddress(), ethers.parseEther("1000"));
+            const burnAmount = ethers.parseEther("100");
+            const initialSupply = await gameToken.totalSupply();
+            const initialContractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            
+            await gameToken.connect(owner).burnTokens(burnAmount);
+            
+            const finalSupply = await gameToken.totalSupply();
+            const finalContractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            
+            expect(finalContractBalance).to.equal(initialContractBalance - burnAmount);
+            expect(finalSupply).to.equal(initialSupply - burnAmount);
+        });
+
+        it("Doit échouer si quelqu'un d'autre que l'owner essaie de brûler des jetons", async function () {
+            const burnAmount = ethers.parseEther("100");
+            
+            await expect(
+                gameToken.connect(addr1).burnTokens(burnAmount)
+            ).to.be.revertedWithCustomError(
+                gameToken,
+                "OwnableUnauthorizedAccount"
+            );
+        });
+
+        it("Devrait échouer si l'owner essaye de brûler plus de jetons que le solde du contrat", async function () {
+            const contractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            const burnAmount = contractBalance + ethers.parseEther("1"); 
+            
+            await expect(
+                gameToken.connect(owner).burnTokens(burnAmount)
+            ).to.be.revertedWith("Not enough tokens in contract");
+        });
+    });
 });
