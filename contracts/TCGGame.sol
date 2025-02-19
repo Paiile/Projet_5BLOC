@@ -239,4 +239,11 @@ contract TCGGame is Ownable {
     }
 
     receive() external payable {}
+
+    function setCardIPFSHash(uint256 cardId, string memory ipfsHash) external {
+        require(cards[cardId].exists, "Card does not exist");
+        require(cards[cardId].currentOwner == msg.sender || owner() == msg.sender, "Not authorized");
+    
+        cards[cardId].ipfsHash = ipfsHash;
+    } 
 }
