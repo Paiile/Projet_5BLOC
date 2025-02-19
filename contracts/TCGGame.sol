@@ -245,5 +245,5 @@ contract TCGGame is Ownable {
         require(cards[cardId].currentOwner == msg.sender || owner() == msg.sender, "Not authorized");
     
         cards[cardId].ipfsHash = ipfsHash;
-    } 
+    }
 }

@@ -4,7 +4,6 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
-// Configuration du client IPFS
 const ipfs = create({
     host: 'localhost',
     port: 5001,
@@ -87,16 +86,14 @@ async function getCardMetadataFromIPFS(ipfsHash) {
     }
 }
 
-// Fonction pour obtenir l'URL passerelle IPFS avec plusieurs alternatives
+// Fonction pour obtenir l'URL passerelle IPFS
 function getIPFSGatewayUrl(ipfsHash) {
     const gateways = [
-        `http://localhost:8080/ipfs/${ipfsHash}`,  // Gateway locale
-        `https://ipfs.io/ipfs/${ipfsHash}`,        // Gateway publique principale
+        `http://localhost:8080/ipfs/${ipfsHash}`,   
     ];
-    return gateways[0]; // Retourne la gateway locale par défaut
+    return gateways[0];
 }
 
-// Fonction pour vérifier l'accessibilité d'une gateway
 async function checkGatewayAccess(ipfsHash) {
     const gateways = [
         `http://localhost:8080/ipfs/${ipfsHash}`,
@@ -118,10 +115,8 @@ async function checkGatewayAccess(ipfsHash) {
 
 async function uploadCardWithMetadata(cardData, imagePath) {
     try {
-        // 1. Lire l'image
         const imageBuffer = fs.readFileSync(imagePath);
         
-        // 2. Upload l'image sur IPFS
         const imageFormData = new FormData();
         imageFormData.append('file', imageBuffer, {
             filename: path.basename(imagePath),
@@ -141,7 +136,6 @@ async function uploadCardWithMetadata(cardData, imagePath) {
         const imageData = await imageResponse.json();
         const imageHash = imageData.Hash;
 
-        // 3. Créer et upload les métadonnées
         const metadata = {
             name: cardData.name,
             description: `${cardData.rarity} ${cardData.cardType} card`,
