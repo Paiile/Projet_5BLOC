@@ -1,37 +1,49 @@
 const { expect } = require("chai");
-const { uploadCardImageToIPFS, getIPFSGatewayUrl } = require("../ipfs-service");
 const fs = require('fs');
 const path = require('path');
+const { 
+    uploadCardImageToIPFS, 
+    getIPFSGatewayUrl,
+    checkGatewayAccess  // Ajout de l'import
+} = require("../ipfs-service");
 
-describe("IPFS Basic Tests", function () {
-    this.timeout(30000);
+describe("IPFS Image Upload Test", function () {
+    this.timeout(60000); // Augmenter le timeout pour les gros fichiers
 
-    it("should upload test-image.png to IPFS", async function () {
-        // Chemin vers l'image de test
-        const imagePath = path.join(__dirname, 'test-assets/test-image.png');
+    it("Upload test-image.png", async function () {
+        const imagePath = path.join(__dirname, 'test-assets', 'test-image.png');
         
         try {
-            // Vérifier si le fichier existe
+            // Vérifier si l'image existe
             if (!fs.existsSync(imagePath)) {
-                throw new Error(`L'image n'existe pas au chemin: ${imagePath}`);
+                throw new Error(`Image non trouvée au chemin: ${imagePath}`);
             }
 
+            // Lire l'image et afficher sa taille
             const imageBuffer = fs.readFileSync(imagePath);
-            console.log("Image size:", imageBuffer.length, "bytes");
-            
+
             // Upload vers IPFS
             const ipfsHash = await uploadCardImageToIPFS(imageBuffer);
-            console.log("IPFS Hash:", ipfsHash);
-            console.log("Gateway URL:", getIPFSGatewayUrl(ipfsHash));
+            
+            // Afficher les résultats
+            console.log('Upload réussi');
+            console.log('IPFS Hash:', ipfsHash);
+            
+            // Vérifier les gateways disponibles
+            const accessibleGateway = await checkGatewayAccess(ipfsHash);
+            if (accessibleGateway) {
+                console.log('Gateway accessible:', accessibleGateway);
+            } else {
+                console.log('Aucune gateway accessible immédiatement. Voici toutes les URLs à essayer plus tard:');
+                console.log(getIPFSGatewayUrl(ipfsHash));
+            }
             
             expect(ipfsHash).to.be.a('string');
             expect(ipfsHash).to.have.length.above(0);
 
-            // Vérifier que l'image est accessible via la gateway
-            console.log("Vous pouvez vérifier l'image à cette URL:", getIPFSGatewayUrl(ipfsHash));
-
+            return ipfsHash;
         } catch (error) {
-            console.error("Test failed:", error);
+            console.error('Erreur lors de l\'upload:', error);
             throw error;
         }
     });
