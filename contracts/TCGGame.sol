@@ -334,4 +334,12 @@ contract TCGGame is Ownable {
             tradeOffers[tradeId]
         );
     }
+
+    function getAllTradesOffers() external view returns (TradeOffer[] memory) {
+        TradeOffer[] memory offers = new TradeOffer[](_currentTradeOfferId);
+        for (uint256 i = 1; i <= _currentTradeOfferId; i++) {
+            offers[i - 1] = tradeOffers[i];
+        }
+        return offers;
+    }
 }
