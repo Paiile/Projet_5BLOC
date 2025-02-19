@@ -12,7 +12,9 @@ Chaque utilisateur peut posséder un maximum de 15 cartes. Pour gérer leur stoc
 
 - **Transférer des cartes** : Au lieu de les brûler, les utilisateur peuvent également donner une carte à un autre joueur.
 
-- **Cooldown** : Un délai est imposé entre l’ouverture des boosters, l’échange de cartes et la destruction d’une carte. Les boosters et les transferts de cartes partagent le même temps de recharge, tandis que la destruction d’une carte a un délai distinct.
+- **Echange de carte** : Les utilisateur peuvent s'échanger une carte.
+
+- **Cooldown** : Un délai est imposé entre l’ouverture des boosters, l’échange de cartes, donner une carte et la destruction d’une carte. Les ouvertures de boosters et les transferts de cartes partagent le même temps de recharge, tandis que la destruction d’une carte a un délai distinct.
 
 ## Liste des commandes
 
