@@ -1,5 +1,8 @@
 # TCG Game Project
 
+###  Adresse du dépot Git 
+- https://github.com/Paiile/Projet_5BLOC
+
 ## Explications
 
 Notre projet s'inspire du jeu Pokémon TCG. 
