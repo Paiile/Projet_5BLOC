@@ -25,6 +25,11 @@ Sur un premier terminal
 npx hardhat node
 ```
 
+Sur un deuxième terminal 
+```shell
+ipfs daemon
+```
+
 Sur un deuxieme terminal
 ```shell 
 npx hardhat compile
