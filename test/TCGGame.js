@@ -319,4 +319,220 @@ describe("TCGGame", function () {
             ).to.be.revertedWith("No ETH to withdraw");
         });
     });
+    
+    describe("BrulerTokens", function () {
+        it("Devrait permettre au propriétaire de brûler des tokens du contrat", async function () {
+            await gameToken.transfer(await gameToken.getAddress(), ethers.parseEther("1000"));
+            const burnAmount = ethers.parseEther("100");
+            const initialSupply = await gameToken.totalSupply();
+            const initialContractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            
+            await gameToken.connect(owner).burnTokens(burnAmount);
+            
+            const finalSupply = await gameToken.totalSupply();
+            const finalContractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            
+            expect(finalContractBalance).to.equal(initialContractBalance - burnAmount);
+            expect(finalSupply).to.equal(initialSupply - burnAmount);
+        });
+
+        it("Doit échouer si quelqu'un d'autre que l'owner essaie de brûler des jetons", async function () {
+            const burnAmount = ethers.parseEther("100");
+            
+            await expect(
+                gameToken.connect(addr1).burnTokens(burnAmount)
+            ).to.be.revertedWithCustomError(
+                gameToken,
+                "OwnableUnauthorizedAccount"
+            );
+        });
+
+        it("Devrait échouer si l'owner essaye de brûler plus de jetons que le solde du contrat", async function () {
+            const contractBalance = await gameToken.balanceOf(await gameToken.getAddress());
+            const burnAmount = contractBalance + ethers.parseEther("1"); 
+            
+            await expect(
+                gameToken.connect(owner).burnTokens(burnAmount)
+            ).to.be.revertedWith("Not enough tokens in contract");
+        });
+    });
+
+    describe("Système d'échange de cartes", function () {    
+        beforeEach(async function () {   
+            // Ouverture de boosters pour avoir des cartes à échanger
+            await game.connect(addr1).openBooster();
+            await ethers.provider.send("evm_increaseTime", [300]); // 5 minutes
+            await ethers.provider.send("evm_mine");
+            
+            await game.connect(addr2).openBooster();
+            await ethers.provider.send("evm_increaseTime", [300]); // 5 minutes
+            await ethers.provider.send("evm_mine");
+            
+            // Récupération des IDs des cartes
+            const addr1Cards = await game.getUserCards(addr1.address);
+            const addr2Cards = await game.getUserCards(addr2.address);
+            addr1CardId = addr1Cards[0];
+            addr2CardId = addr2Cards[0];
+        });
+    
+        describe("Création d'offre d'échange", function () {
+            it("Devrait permettre de créer une offre d'échange valide", async function () {
+                const tx = await game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId);
+                const receipt = await tx.wait();
+    
+                const event = receipt.logs.find(log => {
+                    try {
+                        const parsedLog = game.interface.parseLog(log);
+                        return parsedLog.name === "TradeOfferCreated";
+                    } catch {
+                        return false;
+                    }
+                });
+    
+                expect(event).to.not.be.undefined;
+    
+                const tradeOffer = await game.getTradeOffer(1);
+                expect(tradeOffer.proposer).to.equal(addr1.address);
+                expect(tradeOffer.cardOffered).to.equal(addr1CardId);
+                expect(tradeOffer.cardWanted).to.equal(addr2CardId);
+                expect(tradeOffer.isActive).to.be.true;
+            });
+    
+            it("Devrait échouer si l'utilisateur n'est pas propriétaire de la carte offerte", async function () {
+                await expect(
+                    game.connect(addr1).createTradeOffer(addr2CardId, addr1CardId)
+                ).to.be.revertedWith("Not owner of offered card");
+            });
+    
+            it("Devrait échouer pendant le cooldown", async function () {
+                await game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId);
+                
+                await expect(
+                    game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId)
+                ).to.be.revertedWith("Transfer cooldown active");
+            });
+        });
+    
+        describe("Annulation d'offre d'échange", function () {
+            let tradeId;
+    
+            beforeEach(async function () {
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+                
+                const tx = await game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId);
+                const receipt = await tx.wait();
+                tradeId = 1; // Premier trade
+            });
+    
+            it("Devrait permettre au créateur d'annuler son offre", async function () {
+                await game.connect(addr1).cancelTradeOffer(tradeId);
+                const tradeOffer = await game.getTradeOffer(tradeId);
+                expect(tradeOffer.isActive).to.be.false;
+            });
+    
+            it("Devrait échouer si quelqu'un d'autre essaie d'annuler l'offre", async function () {
+                await expect(
+                    game.connect(addr2).cancelTradeOffer(tradeId)
+                ).to.be.revertedWith("Not trade offer owner");
+            });
+    
+            it("Devrait échouer si l'offre est déjà inactive", async function () {
+                await game.connect(addr1).cancelTradeOffer(tradeId);
+                await expect(
+                    game.connect(addr1).cancelTradeOffer(tradeId)
+                ).to.be.revertedWith("Trade offer not active");
+            });
+        });
+    
+        describe("Acceptation d'offre d'échange", function () {
+            let tradeId;
+    
+            beforeEach(async function () {
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+                
+                const tx = await game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId);
+                const receipt = await tx.wait();
+                tradeId = 1; // Premier trade
+            });
+    
+            it("Devrait permettre un échange valide", async function () {
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+    
+                await game.connect(addr2).acceptTradeOffer(tradeId);
+    
+                // Vérification des nouveaux propriétaires
+                const card1 = await game.cards(addr1CardId);
+                const card2 = await game.cards(addr2CardId);
+    
+                expect(card1.currentOwner).to.equal(addr2.address);
+                expect(card2.currentOwner).to.equal(addr1.address);
+            });
+    
+            it("Devrait échouer si l'offre n'est plus active", async function () {
+                await game.connect(addr1).cancelTradeOffer(tradeId);
+                
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+    
+                await expect(
+                    game.connect(addr2).acceptTradeOffer(tradeId)
+                ).to.be.revertedWith("Trade offer not active");
+            });
+    
+            it("Devrait échouer pendant le cooldown", async function () {
+                await game.connect(addr2).acceptTradeOffer(tradeId);
+                await expect(
+                    game.connect(addr2).acceptTradeOffer(tradeId)
+                ).to.be.revertedWith("Transfer cooldown active");
+            });
+    
+            it("Devrait échouer si l'accepteur n'a plus la carte voulue", async function () {
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+    
+                // Transférer la carte à une autre adresse
+                await game.connect(addr2).transferCard(owner.address, addr2CardId);
+    
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+    
+                await expect(
+                    game.connect(addr2).acceptTradeOffer(tradeId)
+                ).to.be.revertedWith("Not owner of wanted card");
+            });
+        });
+    
+        describe("Getters de l'offre d'échange", function () {
+            let tradeId;
+    
+            beforeEach(async function () {
+                await ethers.provider.send("evm_increaseTime", [300]);
+                await ethers.provider.send("evm_mine");
+                
+                const tx = await game.connect(addr1).createTradeOffer(addr1CardId, addr2CardId);
+                const receipt = await tx.wait();
+                tradeId = 1; // Premier trade
+            });
+    
+            it("Devrait retourner les détails corrects de l'offre", async function () {
+                const tradeOffer = await game.getTradeOffer(tradeId);
+                
+                expect(tradeOffer.proposer).to.equal(addr1.address);
+                expect(tradeOffer.cardOffered).to.equal(addr1CardId);
+                expect(tradeOffer.cardWanted).to.equal(addr2CardId);
+                expect(tradeOffer.isActive).to.be.true;
+                expect(tradeOffer.createdAt).to.not.equal(0);
+            });
+    
+            it("Devrait retourner les détails d'une offre inactive après annulation", async function () {
+                await game.connect(addr1).cancelTradeOffer(tradeId);
+                const tradeOffer = await game.getTradeOffer(tradeId);
+                
+                expect(tradeOffer.isActive).to.be.false;
+            });
+        });
+    });
 });

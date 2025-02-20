@@ -24,10 +24,21 @@ contract TCGGame is Ownable {
         bool exists;
     }
 
+    struct TradeOffer {
+        address proposer;
+        uint256 cardOffered;
+        uint256 cardWanted;
+        uint256 createdAt;
+        bool isActive;
+    }
+
+    mapping(uint256 => TradeOffer) public tradeOffers;   
+
     mapping(uint256 => Card) public cards;
     
     mapping(address => uint256[]) public userCards;
     
+    uint256 private _currentTradeOfferId;
     uint256 public constant MAX_CARDS_PER_USER = 15;
     uint16 public constant CARDS_PER_BOOSTER = 3;
     uint256 public constant TRANSFER_COOLDOWN = 5 minutes;
@@ -41,7 +52,11 @@ contract TCGGame is Ownable {
     event BoosterOpened(address indexed player, uint256[] cardIds);
     event CardBurned(address indexed player, uint256 cardId, uint256 tokenAmount);
     event CardTransferred(address indexed from, address indexed to, uint256 cardId);
-    
+       // Événements pour suivre les échanges
+    event TradeOfferCreated(uint256 indexed tradeId, address indexed proposer, uint256 cardOffered, uint256 cardWanted);
+    event TradeOfferCanceled(uint256 indexed tradeId);
+    event TradeCompleted(uint256 indexed tradeId, address indexed proposer, address indexed acceptor, uint256 cardOffered, uint256 cardWanted);
+
     constructor(address _gameTokenAddress) Ownable(msg.sender) {
         gameToken = ERC20(_gameTokenAddress);
         cardsManager = new CardsManager();
@@ -249,5 +264,92 @@ contract TCGGame is Ownable {
         require(cards[cardId].currentOwner == msg.sender || owner() == msg.sender, "Not authorized");
     
         cards[cardId].ipfsHash = ipfsHash;
+    }
+
+
+    // Fonction pour proposer un échange
+    function createTradeOffer(uint256 cardOffered, uint256 cardWanted) external {
+        require(cards[cardOffered].exists, "Offered card does not exist");
+        require(cards[cardWanted].exists, "Wanted card does not exist");
+        require(cards[cardOffered].currentOwner == msg.sender, "Not owner of offered card");
+        require(block.timestamp >= lastTransferTime[msg.sender] + TRANSFER_COOLDOWN, "Transfer cooldown active");
+        
+        _currentTradeOfferId++;
+        
+        tradeOffers[_currentTradeOfferId] = TradeOffer({
+            proposer: msg.sender,
+            cardOffered: cardOffered,
+            cardWanted: cardWanted,
+            createdAt: block.timestamp,
+            isActive: true
+        });
+        
+        lastTransferTime[msg.sender] = block.timestamp;
+        emit TradeOfferCreated(_currentTradeOfferId, msg.sender, cardOffered, cardWanted);
+    }
+
+    // Fonction pour annuler une offre d'échange
+    function cancelTradeOffer(uint256 tradeId) external {
+        require(tradeOffers[tradeId].isActive, "Trade offer not active");
+        require(tradeOffers[tradeId].proposer == msg.sender, "Not trade offer owner");
+        
+        tradeOffers[tradeId].isActive = false;
+        emit TradeOfferCanceled(tradeId);
+    }
+
+    // Fonction pour accepter un échange
+    function acceptTradeOffer(uint256 tradeId) external {
+        TradeOffer memory offer = tradeOffers[tradeId];
+        require(offer.isActive, "Trade offer not active");
+        require(block.timestamp >= lastTransferTime[msg.sender] + TRANSFER_COOLDOWN, "Transfer cooldown active");
+        
+        uint256 cardWanted = offer.cardWanted;
+        uint256 cardOffered = offer.cardOffered;
+        
+        require(cards[cardWanted].currentOwner == msg.sender, "Not owner of wanted card");
+        require(cards[cardOffered].currentOwner == offer.proposer, "Proposer no longer owns offered card");
+        
+        // Effectuer l'échange
+        address proposer = offer.proposer;
+        
+        // Transférer la carte du proposeur vers l'accepteur
+        cards[cardOffered].currentOwner = msg.sender;
+        cards[cardOffered].previousOwners.push(msg.sender);
+        cards[cardOffered].lastTransferAt = block.timestamp;
+        removeCardFromUser(proposer, cardOffered);
+        userCards[msg.sender].push(cardOffered);
+        
+        // Transférer la carte de l'accepteur vers le proposeur
+        cards[cardWanted].currentOwner = proposer;
+        cards[cardWanted].previousOwners.push(proposer);
+        cards[cardWanted].lastTransferAt = block.timestamp;
+        removeCardFromUser(msg.sender, cardWanted);
+        userCards[proposer].push(cardWanted);
+        
+        // Mettre à jour les cooldowns
+        lastTransferTime[msg.sender] = block.timestamp;
+        lastTransferTime[proposer] = block.timestamp;
+        
+        // Désactiver l'offre
+        offer.isActive = false;
+        
+        emit TradeCompleted(tradeId, proposer, msg.sender, cardOffered, cardWanted);
+    }
+
+    // Fonction pour obtenir les détails d'une offre d'échange
+    function getTradeOffer(uint256 tradeId) external view returns (
+        TradeOffer memory tradeOffer
+    ) {
+        return (
+            tradeOffers[tradeId]
+        );
+    }
+
+    function getAllTradesOffers() external view returns (TradeOffer[] memory) {
+        TradeOffer[] memory offers = new TradeOffer[](_currentTradeOfferId);
+        for (uint256 i = 1; i <= _currentTradeOfferId; i++) {
+            offers[i - 1] = tradeOffers[i];
+        }
+        return offers;
     }
 }
