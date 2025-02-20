@@ -118,14 +118,12 @@ describe("TCGGame", function () {
           });
 
         it("Devrait échouer si pas assez de tokens", async function () {
-            // First, remove all tokens from addr2
             const addr2Balance = await gameToken.balanceOf(addr2.address);
             await gameToken.connect(addr2).transfer(owner.address, addr2Balance);
 
-            // Try to open booster without enough tokens
             await expect(
                 game.connect(addr2).openBooster()
-            ).to.be.reverted; // Use .to.be.reverted instead of .to.be.revertedWith
+            ).to.be.reverted;
         });
 
         it("Devrait échouer si non approuvé", async function () {
