@@ -1,5 +1,11 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { 
+    uploadCardWithMetadata, 
+    checkIPFSConnection 
+  } = require("../ipfs-service");
+  const fs = require("fs");
+  const path = require("path");
 
 describe("TCGGame", function () {
     let GameToken;
@@ -42,24 +48,68 @@ describe("TCGGame", function () {
     });
 
     describe("Ouverture de Booster", function () {
-        it("Devrait permettre l'ouverture d'un booster", async function () {
+        it("Devrait permettre l'ouverture d'un booster et stocker les images sur IPFS", async function () {
+            // Vérifier la connexion IPFS avant de commencer
+            const ipfsConnected = await checkIPFSConnection();
+            if (!ipfsConnected) {
+              console.log("IPFS non disponible, test ignoré");
+              this.skip();
+            }
+          
+            // Ouvrir un booster
             const tx = await game.connect(addr1).openBooster();
             const receipt = await tx.wait();
-
-            const gameAddress = await game.getAddress();
+          
+            // Récupérer les cartes créées depuis l'événement
             const event = receipt.logs.find(log => {
-                try {
-                    const parsedLog = game.interface.parseLog(log);
-                    return parsedLog.name === "BoosterOpened";
-                } catch {
-                    return false;
-                }
+              try {
+                const parsedLog = game.interface.parseLog(log);
+                return parsedLog.name === "BoosterOpened";
+              } catch {
+                return false;
+              }
             });
+          
             expect(event).to.not.be.undefined;
-
+            const parsedEvent = game.interface.parseLog(event);
+            const cardIds = parsedEvent.args.cardIds;
+            expect(cardIds.length).to.equal(3);
+          
+            const imagePaths = [
+              path.resolve(__dirname, "test-assets/noadkoko.jpeg"),
+              path.resolve(__dirname, "test-assets/pikachu.jpeg"),
+              path.resolve(__dirname, "test-assets/salameche.jpeg"),
+            ];
+          
+            // Pour chaque carte créée, récupérer ses détails et ajouter son image à IPFS
+            for (let i = 0; i < cardIds.length; i++) {
+                const cardId = cardIds[i];
+                const card = await game.cards(cardId);
+                
+                const cardData = {
+                    name: card.name,
+                    cardType: card.cardType,
+                    rarity: card.rarity,
+                    value: card.value.toString()
+                };
+          
+                const result = await uploadCardWithMetadata(cardData, imagePaths[i]);
+              
+                await game.connect(addr1).setCardIPFSHash(cardId, result.metadataHash);
+              
+                const updatedCard = await game.cards(cardId);
+                expect(updatedCard.ipfsHash).to.equal(result.metadataHash);
+              
+                // Afficher les liens IPFS dans la console
+                console.log(`Carte #${cardId} - ${card.name} (${card.rarity}):`);
+                console.log(`Métadonnées: http://localhost:8080/ipfs/${result.metadataHash}`);
+                console.log(`Image: http://localhost:8080/ipfs/${result.imageHash}`);
+            }
+          
+            // Vérifier que les cartes sont bien associées à l'utilisateur
             const userCards = await game.getUserCards(addr1.address);
             expect(userCards.length).to.equal(3);
-        });
+          });
 
         it("Devrait échouer si pas assez de tokens", async function () {
             // First, remove all tokens from addr2

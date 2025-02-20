@@ -81,15 +81,19 @@ contract TCGGame is Ownable {
             address[] memory previousOwners = new address[](1);
             previousOwners[0] = msg.sender;
             
+            // Utilisation de i et d'autres valeurs pour diversifier le seed
+            uint256 nameRandomSeed = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, i, "name"))) % 10;
+            uint256 typeRandomSeed = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, i, "type"))) % 10;
+            
             cards[newCardId] = Card({
-                name: generateCardName(newCardId),
-                cardType: generateCardType(newCardId),
+                name: generateCardName(nameRandomSeed),
+                cardType: generateCardType(typeRandomSeed),
                 value: 0,
                 ipfsHash: generateIPFSHash(newCardId),
                 previousOwners: previousOwners,
                 createdAt: block.timestamp,
                 lastTransferAt: block.timestamp,
-                rarity: generateRarity(),
+                rarity: generateRarity(i),
                 currentOwner: msg.sender,
                 exists: true
             });
@@ -215,16 +219,16 @@ contract TCGGame is Ownable {
     }
     
     // Rareté aléatoire 
-    function generateRarity() internal view returns (string memory) {
-        uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender))) % 100;
-        string[] memory cardRarities = cardsManager.getCardRarities();
-        
-        if (rand < 50) return cardRarities[0];
-        if (rand < 70) return cardRarities[1];
-        if (rand < 85) return cardRarities[2];
-        if (rand < 95) return cardRarities[3];
-        return cardRarities[4];
-    }
+    function generateRarity(uint256 iteration) internal view returns (string memory) {
+    uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, iteration, "rarity"))) % 100;
+    string[] memory cardRarities = cardsManager.getCardRarities();
+    
+    if (rand < 50) return cardRarities[0];
+    if (rand < 70) return cardRarities[1];
+    if (rand < 85) return cardRarities[2];
+    if (rand < 95) return cardRarities[3];
+    return cardRarities[4];     
+}
        
     function toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
@@ -255,6 +259,12 @@ contract TCGGame is Ownable {
 
     receive() external payable {}
 
+    function setCardIPFSHash(uint256 cardId, string memory ipfsHash) external {
+        require(cards[cardId].exists, "Card does not exist");
+        require(cards[cardId].currentOwner == msg.sender || owner() == msg.sender, "Not authorized");
+    
+        cards[cardId].ipfsHash = ipfsHash;
+    }
 
 
     // Fonction pour proposer un échange

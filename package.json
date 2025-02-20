@@ -6,6 +6,9 @@
     "hardhat": "^2.22.18"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.2.0"
+    "@openzeppelin/contracts": "^5.2.0",
+    "form-data": "^4.0.2",
+    "ipfs-http-client": "^56.0.3",
+    "node-fetch": "^2.6.7"
   }
 }
