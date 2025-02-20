@@ -25,10 +25,25 @@ contract CardsManager is Ownable {
         cardTypes.push(newType);
     }
 
-    function removeCardType(uint256 index) external onlyOwner {
+    function removeCardType(uint256 index) public onlyOwner {
         require(index < cardTypes.length, "Index out of bounds");
-        cardTypes[index] = cardTypes[cardTypes.length - 1];
+        for (uint i = index; i < cardTypes.length - 1; i++) {
+            cardTypes[i] = cardTypes[i + 1];
+        }
         cardTypes.pop();
+    }
+
+    function removeCardType(string memory _type) public onlyOwner {
+        uint index = cardTypes.length;
+        for (uint i = 0; i < cardTypes.length; i++) {
+            if (keccak256(abi.encodePacked(cardTypes[i])) == keccak256(abi.encodePacked(_type))) {
+                index = i;
+                break;
+            }
+        }
+
+        require(index < cardTypes.length, "Card type not found");
+        removeCardType(index);
     }
 
     function getCardNames() public view returns (string[] memory) {
@@ -42,10 +57,25 @@ contract CardsManager is Ownable {
         cardNames.push(newName);
     }
 
-    function removeCardName(uint256 index) external onlyOwner {
+    function removeCardName(uint256 index) public onlyOwner {
         require(index < cardNames.length, "Index out of bounds");
-        cardNames[index] = cardNames[cardNames.length - 1];
+        for (uint i = index; i < cardNames.length - 1; i++) {
+            cardNames[i] = cardNames[i + 1];
+        }
         cardNames.pop();
+    }
+
+    function removeCardName(string memory name) public onlyOwner {
+        uint index = cardNames.length;
+        for (uint i = 0; i < cardNames.length; i++) {
+            if (keccak256(abi.encodePacked(cardNames[i])) == keccak256(abi.encodePacked(name))) {
+                index = i;
+                break;
+            }
+        }
+
+        require(index < cardNames.length, "Card name not found");
+        removeCardName(index);
     }
 
     function getCardRarities() public view returns (string[] memory) {

@@ -220,15 +220,15 @@ contract TCGGame is Ownable {
     
     // Rareté aléatoire 
     function generateRarity(uint256 iteration) internal view returns (string memory) {
-    uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, iteration, "rarity"))) % 100;
-    string[] memory cardRarities = cardsManager.getCardRarities();
+        uint256 rand = uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, iteration, "rarity"))) % 100;
+        string[] memory cardRarities = cardsManager.getCardRarities();
     
-    if (rand < 50) return cardRarities[0];
-    if (rand < 70) return cardRarities[1];
-    if (rand < 85) return cardRarities[2];
-    if (rand < 95) return cardRarities[3];
-    return cardRarities[4];     
-}
+        if (rand < 50) return cardRarities[0];
+        if (rand < 70) return cardRarities[1];
+        if (rand < 85) return cardRarities[2];
+        if (rand < 95) return cardRarities[3];
+        return cardRarities[4];
+    }
        
     function toString(uint256 value) internal pure returns (string memory) {
         if (value == 0) {
