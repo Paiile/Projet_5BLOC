@@ -19,14 +19,11 @@ describe("IPFS Image Upload Test", function () {
                 throw new Error(`Image non trouvée au chemin: ${imagePath}`);
             }
 
-            // Lire l'image et afficher sa taille
             const imageBuffer = fs.readFileSync(imagePath);
 
-            // Upload vers IPFS
             const ipfsHash = await uploadCardImageToIPFS(imageBuffer);
             
             // Afficher les résultats
-            console.log('Upload réussi');
             console.log('IPFS Hash:', ipfsHash);
             
             // Vérifier les gateways disponibles

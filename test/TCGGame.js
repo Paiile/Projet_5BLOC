@@ -79,6 +79,11 @@ describe("TCGGame", function () {
               path.resolve(__dirname, "test-assets/noadkoko.jpeg"),
               path.resolve(__dirname, "test-assets/pikachu.jpeg"),
               path.resolve(__dirname, "test-assets/salameche.jpeg"),
+              path.resolve(__dirname, "test-assets/bulbizarre.png"),
+              path.resolve(__dirname, "test-assets/leviator.png"),
+              path.resolve(__dirname, "test-assets/mew.png"),
+              path.resolve(__dirname, "test-assets/mewtwo.png"),
+              path.resolve(__dirname, "test-assets/pikachu.png"),
             ];
           
             // Pour chaque carte créée, récupérer ses détails et ajouter son image à IPFS
@@ -93,7 +98,8 @@ describe("TCGGame", function () {
                     value: card.value.toString()
                 };
           
-                const result = await uploadCardWithMetadata(cardData, imagePaths[i]);
+                const randomIndex = Math.floor(Math.random() * imagePaths.length);
+                const result = await uploadCardWithMetadata(cardData, imagePaths[randomIndex]);
               
                 await game.connect(addr1).setCardIPFSHash(cardId, result.metadataHash);
               
