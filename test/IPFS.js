@@ -4,7 +4,7 @@ const path = require('path');
 const { 
     uploadCardImageToIPFS, 
     getIPFSGatewayUrl,
-    checkGatewayAccess  // Ajout de l'import
+    checkGatewayAccess
 } = require("../ipfs-service");
 
 describe("IPFS Image Upload Test", function () {
