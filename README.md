@@ -20,6 +20,12 @@ Chaque utilisateur peut posséder un maximum de 15 cartes. Pour gérer leur stoc
 
 Voici la liste des commandes à effectuer pour permettre de réaliser les tests de notre projet.
 
+Tout d'abord réaliser la commande npm i pour installer toutes les dépendances du projet
+
+```shell 
+npm i 
+```
+
 Sur un premier terminal
 ```shell
 npx hardhat node
