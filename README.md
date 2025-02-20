@@ -1,6 +1,7 @@
 # TCG Game Project
 
 ###  Adresse du dépot Git 
+Si vous souhaitez voir le dépot de notre projet
 - https://github.com/Paiile/Projet_5BLOC
 
 ## Explications
